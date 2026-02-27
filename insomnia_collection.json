@@ -1,0 +1,122 @@
+{
+    "_type": "export",
+    "__export_format": 4,
+    "__export_date": "2026-02-27T04:16:53.000Z",
+    "__export_source": "insomnia.desktop.app:v2023.5.8",
+    "resources": [
+        {
+            "_id": "wrk_1",
+            "parentId": null,
+            "modified": 1709040000000,
+            "created": 1709040000000,
+            "name": "School Project Monitoring System",
+            "description": "",
+            "scope": "collection",
+            "_type": "workspace"
+        },
+        {
+            "_id": "req_1",
+            "parentId": "wrk_1",
+            "modified": 1709040000000,
+            "created": 1709040000000,
+            "url": "{{ _.base_url }}/projects",
+            "name": "Get All Projects",
+            "description": "",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [],
+            "authentication": {},
+            "metaSortKey": -1709040000000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_2",
+            "parentId": "wrk_1",
+            "modified": 1709040000000,
+            "created": 1709040000000,
+            "url": "{{ _.base_url }}/login",
+            "name": "Login",
+            "description": "",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n\t\"username\": \"admin\",\n\t\"password\": \"1234\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1709040000001,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_3",
+            "parentId": "wrk_1",
+            "modified": 1709040000000,
+            "created": 1709040000000,
+            "url": "{{ _.base_url }}/register",
+            "name": "Register",
+            "description": "",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n\t\"full_name\": \"Admin User\",\n\t\"username\": \"admin\",\n\t\"password\": \"1234\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1709040000002,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "env_1",
+            "parentId": "wrk_1",
+            "modified": 1709040000000,
+            "created": 1709040000000,
+            "name": "Base Environment",
+            "data": {
+                "base_url": "http://localhost:3000"
+            },
+            "dataPropertyOrder": {
+                "&": [
+                    "base_url"
+                ]
+            },
+            "color": null,
+            "isPrivate": false,
+            "metaSortKey": 1709040000000,
+            "_type": "environment"
+        }
+    ]
+}
