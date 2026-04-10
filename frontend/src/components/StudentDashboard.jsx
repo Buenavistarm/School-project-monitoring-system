@@ -19,6 +19,7 @@ import {
     RefreshCw
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "../config";
 
 const StudentDashboard = ({ setAuth }) => {
     const navigate = useNavigate();
@@ -50,7 +51,7 @@ const StudentDashboard = ({ setAuth }) => {
     const fetchUser = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get("http://localhost:5000/auth/me", { headers: { token } });
+            const res = await axios.get(`${API_BASE_URL}/auth/me`, { headers: { token } });
             setUser({ ...res.data, class_section: res.data.class_section || "Set your section" });
         } catch (err) { console.error("Error fetching user", err); }
     };
@@ -58,7 +59,7 @@ const StudentDashboard = ({ setAuth }) => {
     const fetchProjects = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get("http://localhost:5000/my-projects", { headers: { token } });
+            const res = await axios.get(`${API_BASE_URL}/my-projects`, { headers: { token } });
             setProjects(res.data);
         } catch (err) { console.error("Error fetching projects", err); }
     };
@@ -67,14 +68,13 @@ const StudentDashboard = ({ setAuth }) => {
         e.preventDefault();
         try {
             const token = localStorage.getItem("token");
-            // Send empty strings for removed fields to keep backend compatibility
             const projectData = {
                 ...newProject,
                 description: "",
                 objectives: "",
                 budget: ""
             };
-            await axios.post("http://localhost:5000/projects", projectData, { headers: { token } });
+            await axios.post(`${API_BASE_URL}/projects`, projectData, { headers: { token } });
             setNewProject({ title: "", subject: "", start_date: "", deadline: "", assigned_members: "" });
             setShowCreateForm(false);
             fetchProjects();
@@ -85,7 +85,7 @@ const StudentDashboard = ({ setAuth }) => {
     const updateProjectProgress = async (projectId, updates) => {
         try {
             const token = localStorage.getItem("token");
-            await axios.put(`http://localhost:5000/projects/${projectId}`, updates, { headers: { token } });
+            await axios.put(`${API_BASE_URL}/projects/${projectId}`, updates, { headers: { token } });
             fetchProjects();
             if (updates.progress) showToast(`Status updated to: ${updates.progress}`, "success");
             if (selectedProjectDetails && selectedProjectDetails.id === projectId) {
@@ -101,7 +101,7 @@ const StudentDashboard = ({ setAuth }) => {
         setUploading({ ...uploading, [projectId]: true });
         try {
             const token = localStorage.getItem("token");
-            await axios.post(`http://localhost:5000/projects/${projectId}/upload`, formData, {
+            await axios.post(`${API_BASE_URL}/projects/${projectId}/upload`, formData, {
                 headers: { token, 'Content-Type': 'multipart/form-data' }
             });
             fetchProjects();
@@ -116,7 +116,7 @@ const StudentDashboard = ({ setAuth }) => {
     const submitProject = async (projectId) => {
         try {
             const token = localStorage.getItem("token");
-            await axios.patch(`http://localhost:5000/projects/${projectId}/submit`, {}, { headers: { token } });
+            await axios.patch(`${API_BASE_URL}/projects/${projectId}/submit`, {}, { headers: { token } });
             fetchProjects();
             showToast("Project submitted successfully!", "success");
         } catch (err) { showToast("Submission failed.", "error"); }
@@ -125,7 +125,7 @@ const StudentDashboard = ({ setAuth }) => {
     const resubmitProject = async (projectId) => {
         try {
             const token = localStorage.getItem("token");
-            await axios.patch(`http://localhost:5000/projects/${projectId}/resubmit`, {}, { headers: { token } });
+            await axios.patch(`${API_BASE_URL}/projects/${projectId}/resubmit`, {}, { headers: { token } });
             fetchProjects();
             showToast("Project resubmitted for review!", "success");
         } catch (err) { showToast("Resubmission failed.", "error"); }
@@ -141,7 +141,7 @@ const StudentDashboard = ({ setAuth }) => {
         e.preventDefault();
         try {
             const token = localStorage.getItem("token");
-            await axios.put("http://localhost:5000/auth/me", { class_section: profileInput }, { headers: { token } });
+            await axios.put(`${API_BASE_URL}/auth/me`, { class_section: profileInput }, { headers: { token } });
             fetchUser();
             setShowProfileUpdate(false);
             showToast("Profile updated successfully!");
@@ -285,7 +285,7 @@ const StudentDashboard = ({ setAuth }) => {
                                             </label>
                                         )}
                                         {proj.file_url && (
-                                            <a href={`http://localhost:5000${proj.file_url}`} target="_blank" rel="noreferrer" className="text-blue-500 text-xs font-bold underline flex items-center gap-1">
+                                            <a href={`${API_BASE_URL}${proj.file_url}`} target="_blank" rel="noreferrer" className="text-blue-500 text-xs font-bold underline flex items-center gap-1">
                                                 <FileText size={14} /> View File
                                             </a>
                                         )}
@@ -448,7 +448,7 @@ const StudentDashboard = ({ setAuth }) => {
                 </div>
             )}
 
-            {/* Create Project Modal - Updated (removed Budget, Objectives, Description) */}
+            {/* Create Project Modal */}
             {showCreateForm && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-hidden">
                     <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl max-h-[85vh] overflow-y-auto">
@@ -564,7 +564,7 @@ const StudentDashboard = ({ setAuth }) => {
                             {selectedProjectDetails.file_url && (
                                 <div className="border-t pt-4">
                                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Attached Document</p>
-                                    <a href={`http://localhost:5000${selectedProjectDetails.file_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-gray-800 transition-all">
+                                    <a href={`${API_BASE_URL}${selectedProjectDetails.file_url}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-gray-800 transition-all">
                                         <Eye size={16} /> Open Submission
                                     </a>
                                 </div>

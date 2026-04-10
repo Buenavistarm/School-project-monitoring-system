@@ -16,6 +16,7 @@ import {
     Edit3
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "../config";
 
 const TeacherDashboard = ({ setAuth }) => {
     const navigate = useNavigate();
@@ -50,7 +51,7 @@ const TeacherDashboard = ({ setAuth }) => {
     const fetchUser = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get("http://localhost:5000/auth/me", { headers: { token } });
+            const res = await axios.get(`${API_BASE_URL}/auth/me`, { headers: { token } });
             setTeacher({
                 name: res.data.name,
                 email: res.data.email || `${res.data.name.toLowerCase().replace(' ', '.')}@school.edu`,
@@ -62,7 +63,7 @@ const TeacherDashboard = ({ setAuth }) => {
     const fetchProjects = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get("http://localhost:5000/teacher/my-projects", { headers: { token } });
+            const res = await axios.get(`${API_BASE_URL}/teacher/my-projects`, { headers: { token } });
             setProjects(res.data);
         } catch (err) { console.error("Error fetching projects", err); }
     };
@@ -70,7 +71,7 @@ const TeacherDashboard = ({ setAuth }) => {
     const fetchStudents = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get("http://localhost:5000/teacher/students", { headers: { token } });
+            const res = await axios.get(`${API_BASE_URL}/teacher/students`, { headers: { token } });
             setStudents(res.data);
         } catch (err) { console.error("Error fetching students", err); }
     };
@@ -79,7 +80,7 @@ const TeacherDashboard = ({ setAuth }) => {
         e.preventDefault();
         try {
             const token = localStorage.getItem("token");
-            await axios.post(`http://localhost:5000/teacher/grade/${selectedProject.id}`,
+            await axios.post(`${API_BASE_URL}/teacher/grade/${selectedProject.id}`,
                 { grade, feedback },
                 { headers: { token } }
             );
@@ -95,7 +96,7 @@ const TeacherDashboard = ({ setAuth }) => {
     const handleApproval = async (projectId, newStatus) => {
         try {
             const token = localStorage.getItem("token");
-            await axios.put(`http://localhost:5000/projects/${projectId}`, { status: newStatus }, { headers: { token } });
+            await axios.put(`${API_BASE_URL}/projects/${projectId}`, { status: newStatus }, { headers: { token } });
             fetchProjects();
             setShowReviewModal(false);
             showToast(`Project marked as ${newStatus}`, "success");
@@ -111,7 +112,7 @@ const TeacherDashboard = ({ setAuth }) => {
         }
         try {
             const token = localStorage.getItem("token");
-            await axios.patch(`http://localhost:5000/projects/${selectedProject.id}/request-revision`,
+            await axios.patch(`${API_BASE_URL}/projects/${selectedProject.id}/request-revision`,
                 { revision_feedback: revisionFeedback },
                 { headers: { token } }
             );
@@ -127,7 +128,7 @@ const TeacherDashboard = ({ setAuth }) => {
     const updateProjectProgress = async (projectId, updates) => {
         try {
             const token = localStorage.getItem("token");
-            await axios.put(`http://localhost:5000/projects/${projectId}`, updates, { headers: { token } });
+            await axios.put(`${API_BASE_URL}/projects/${projectId}`, updates, { headers: { token } });
             fetchProjects();
             if (updates.progress) showToast(`Progress updated to: ${updates.progress}`, "success");
             if (selectedProject && selectedProject.id === projectId) {
@@ -146,7 +147,7 @@ const TeacherDashboard = ({ setAuth }) => {
         e.preventDefault();
         try {
             const token = localStorage.getItem("token");
-            await axios.put("http://localhost:5000/auth/me", { subject: profileInput }, { headers: { token } });
+            await axios.put(`${API_BASE_URL}/auth/me`, { subject: profileInput }, { headers: { token } });
             fetchUser();
             setShowProfileUpdate(false);
             showToast("Subject profile updated", "success");
@@ -213,7 +214,6 @@ const TeacherDashboard = ({ setAuth }) => {
             </header>
 
             <main className="max-w-7xl mx-auto mt-8 px-6">
-                {/* Profile Card */}
                 <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center mb-8">
                     <div className="flex items-center gap-6">
                         <div className="w-20 h-20 bg-[#9333EA] rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-purple-100">
@@ -241,7 +241,6 @@ const TeacherDashboard = ({ setAuth }) => {
                     </div>
                 </div>
 
-                {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     {[
                         { label: "Total Projects", value: totalProjects, icon: <BookOpen size={18} className="text-gray-400" />, color: "text-gray-800" },
@@ -259,7 +258,6 @@ const TeacherDashboard = ({ setAuth }) => {
                     ))}
                 </div>
 
-                {/* Tab Navigation */}
                 <div className="flex gap-2 mb-6 bg-gray-200/50 p-1 rounded-xl w-fit">
                     {["Assigned Projects", "Pending Review", "Needs Revision", "Graded", "My Students"].map(tab => (
                         <button
@@ -272,7 +270,6 @@ const TeacherDashboard = ({ setAuth }) => {
                     ))}
                 </div>
 
-                {/* Main Table */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-[#FDFDFF]">
                         <h3 className="font-bold text-gray-800 tracking-tight">{activeTab}</h3>
@@ -305,7 +302,7 @@ const TeacherDashboard = ({ setAuth }) => {
                                             <td className="px-8 py-5">{renderStatusBadge(p.status)}</td>
                                             <td className="px-8 py-5">
                                                 {p.file_url ? (
-                                                    <a href={`http://localhost:5000${p.file_url}`} target="_blank" rel="noreferrer" className="text-blue-600 text-xs font-bold flex items-center gap-1.5 hover:underline">
+                                                    <a href={`${API_BASE_URL}${p.file_url}`} target="_blank" rel="noreferrer" className="text-blue-600 text-xs font-bold flex items-center gap-1.5 hover:underline">
                                                         <FileText size={14} /> Open File
                                                     </a>
                                                 ) : <span className="text-gray-400 text-xs italic opacity-60">No file</span>}
@@ -428,7 +425,7 @@ const TeacherDashboard = ({ setAuth }) => {
                 </div>
             )}
 
-            {/* Revision Request Modal (for submitted projects) */}
+            {/* Revision Request Modal */}
             {showRevisionModal && selectedProject && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-[32px] p-10 max-w-2xl w-full shadow-2xl border border-gray-100">
@@ -467,7 +464,7 @@ const TeacherDashboard = ({ setAuth }) => {
                 </div>
             )}
 
-            {/* Review Modal (for pending approval or viewing details) */}
+            {/* Review Modal */}
             {showReviewModal && selectedProject && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-[32px] p-10 max-w-2xl w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">

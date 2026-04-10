@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Lock, UserPlus, Eye, EyeOff, Briefcase, AlertCircle, BookOpen } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const Register = ({ setAuth }) => {
     const [inputs, setInputs] = useState({
@@ -32,7 +33,7 @@ const Register = ({ setAuth }) => {
         setError("");
         try {
             const { confirmPassword, ...userData } = inputs;
-            const response = await axios.post("http://localhost:5000/auth/register", userData);
+            const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
             localStorage.setItem("token", response.data.token);
             setAuth(true);
             navigate("/dashboard");
@@ -47,7 +48,6 @@ const Register = ({ setAuth }) => {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 p-4">
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20">
 
-                {/* DESIGNED ERROR NOTIFICATION */}
                 {error && (
                     <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
                         <AlertCircle size={18} />
@@ -141,7 +141,6 @@ const Register = ({ setAuth }) => {
                             </select>
                         </div>
 
-                        {/* TEXT INPUT FOR SUBJECT (ONLY FOR TEACHERS) */}
                         {inputs.role === "teacher" && (
                             <div className="relative group animate-in fade-in slide-in-from-left-2">
                                 <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, LogIn, Eye, EyeOff, AlertCircle } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const Login = ({ setAuth }) => {
   const [inputs, setInputs] = useState({ email: "", password: "" });
@@ -12,7 +13,7 @@ const Login = ({ setAuth }) => {
 
   const onChange = (e) => {
     setInputs({ ...inputs, [e.target.name]: e.target.value });
-    if (error) setError(""); // Clear error when user types
+    if (error) setError("");
   };
 
   const onSubmitForm = async (e) => {
@@ -20,7 +21,7 @@ const Login = ({ setAuth }) => {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.post("http://localhost:5000/auth/login", inputs);
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, inputs);
       localStorage.setItem("token", response.data.token);
       setAuth(true);
       navigate("/dashboard");
@@ -35,7 +36,6 @@ const Login = ({ setAuth }) => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
       <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20">
 
-        {/* DESIGNED ERROR NOTIFICATION */}
         {error && (
           <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
             <AlertCircle size={18} />

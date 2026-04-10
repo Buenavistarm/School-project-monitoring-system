@@ -20,6 +20,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
+import API_BASE_URL from "../config";
 
 const AdminDashboard = ({ setAuth }) => {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ const AdminDashboard = ({ setAuth }) => {
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/admin/projects", { headers: { token } });
+      const response = await axios.get(`${API_BASE_URL}/admin/projects`, { headers: { token } });
       setProjects(response.data);
     } catch (err) { console.error("Failed to fetch projects", err); }
   };
@@ -54,7 +55,7 @@ const AdminDashboard = ({ setAuth }) => {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5000/admin/users", { headers: { token } });
+      const response = await axios.get(`${API_BASE_URL}/admin/users`, { headers: { token } });
       setUsers(response.data);
     } catch (err) { console.error("Failed to fetch users", err); }
   };
@@ -62,7 +63,7 @@ const AdminDashboard = ({ setAuth }) => {
   const fetchTeachers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:5000/admin/teachers", { headers: { token } });
+      const res = await axios.get(`${API_BASE_URL}/admin/teachers`, { headers: { token } });
       setTeachers(res.data);
     } catch (err) { console.error(err); }
   };
@@ -71,7 +72,7 @@ const AdminDashboard = ({ setAuth }) => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:5000/admin/projects/${selectedProjectForReassign.id}/assign-teacher`,
+        `${API_BASE_URL}/admin/projects/${selectedProjectForReassign.id}/assign-teacher`,
         { teacher_id: selectedTeacherId },
         { headers: { token } }
       );
@@ -103,8 +104,7 @@ const AdminDashboard = ({ setAuth }) => {
 
   const COLORS = ['#3B82F6', '#F59E0B', '#10B981', '#8B5CF6'];
 
-  // --- FIX: Normalize subject names to avoid duplicates (case‑insensitive, trim) ---
-  const subjectMap = new Map(); // key = normalized lowercase, value = { displayName, count }
+  const subjectMap = new Map();
   projects.forEach(p => {
     let rawSub = p.teacher_subject || p.subject || 'General';
     rawSub = rawSub.trim();
@@ -122,11 +122,10 @@ const AdminDashboard = ({ setAuth }) => {
     Projects: item.count
   }));
 
-  // --- Section performance (already correct, but ensure class_section exists) ---
   const sectionMap = {};
   students.forEach(s => {
     const sec = s.class_section || s.class || 'N/A';
-    if (sec === 'N/A') return; // skip students without section
+    if (sec === 'N/A') return;
     const sProj = projects.filter(p => p.student_id === s.id && p.grade);
     if (sProj.length > 0) {
       const sAvg = sProj.reduce((acc, curr) => acc + parseInt(curr.grade || 0), 0) / sProj.length;

@@ -3,6 +3,7 @@ import axios from "axios";
 import StudentDashboard from "./StudentDashboard";
 import TeacherDashboard from "./TeacherDashboard";
 import AdminDashboard from "./AdminDashboard";
+import API_BASE_URL from "../config";
 
 const DashboardRouter = ({ setAuth }) => {
     const [role, setRole] = useState(null);
@@ -12,7 +13,7 @@ const DashboardRouter = ({ setAuth }) => {
         const fetchUserRole = async () => {
             try {
                 const token = localStorage.getItem("token");
-                const response = await axios.get("http://localhost:5000/auth/me", {
+                const response = await axios.get(`${API_BASE_URL}/auth/me`, {
                     headers: { token }
                 });
                 setRole(response.data.role);
