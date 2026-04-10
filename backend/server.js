@@ -9,7 +9,7 @@ require('dotenv').config();
 
 // IMPORT DATABASE - Siguraduhin na tama ang filename (db.js o db/index.js)
 // Kung ang file mo ay db.js sa root folder, gamitin ang: require('./db')
-const pool = require('./db');
+const pool = require('./db/index');
 
 const app = express();
 
@@ -19,22 +19,26 @@ if (!fs.existsSync('uploads')) {
 }
 
 // ---------------------- CORS CONFIGURATION ----------------------
-// Payagan ang localhost at ang iyong Vercel link
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://school-project-monitoring-system.vercel.app'
+    'https://school-project-monitoring-system.vercel.app' // SIGURADUHIN NA WALANG '/' SA DULO
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        // Payagan ang requests na walang origin (gaya ng Postman o mobile tools)
+        // O kung ang origin ay kasama sa allowedOrigins list
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.log("CORS Blocked Origin:", origin); // Para makita mo sa Render Logs kung anong URL ang nablock
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'token'] // Importante para sa JWT token mo
 }));
 
 app.use(express.json());
