@@ -1,12 +1,16 @@
 const express = require('express');
 const cors = require('cors');
-const pool = require('./db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
+
+// Import database – adjust path if your db file is elsewhere
+// If you have a folder 'db' with index.js, use './db/index'
+// Otherwise, if you have a file 'db.js' in root, use './db'
+const pool = require('./db/index');  // <-- CHANGE THIS TO MATCH YOUR FILE STRUCTURE
 
 const app = express();
 
@@ -16,7 +20,6 @@ if (!fs.existsSync('uploads')) {
 }
 
 // ---------------------- CORS CONFIGURATION ----------------------
-// Allow localhost for development and Vercel frontend
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
@@ -65,10 +68,17 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-
+// ========== TEST ROUTE (already working) ==========
 app.get("/test", (req, res) => {
     res.json({ message: "Backend is alive" });
 });
+
+// ========== SIMPLE LOGIN TEST (no database) ==========
+// This will help verify if the route is registered
+app.post("/test-login", (req, res) => {
+    res.json({ message: "Test login endpoint works" });
+});
+
 // ========== AUTH ROUTES ==========
 app.post("/auth/register", async (req, res) => {
     try {
@@ -83,7 +93,10 @@ app.post("/auth/register", async (req, res) => {
         );
         const token = jwtGenerator(newUser.rows[0].id);
         res.json({ token, user: newUser.rows[0] });
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Register error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.post("/auth/login", async (req, res) => {
@@ -98,14 +111,20 @@ app.post("/auth/login", async (req, res) => {
             token,
             user: { id: user.rows[0].id, name: user.rows[0].name, email: user.rows[0].email, role: user.rows[0].role }
         });
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.get("/auth/me", authorize, async (req, res) => {
     try {
         const user = await pool.query("SELECT id, name, email, role, class_section, subject FROM users WHERE id = $1", [req.user.id]);
         res.json(user.rows[0]);
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Auth/me error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.put("/auth/me", authorize, async (req, res) => {
@@ -116,7 +135,10 @@ app.put("/auth/me", authorize, async (req, res) => {
             [class_section, subject, req.user.id]
         );
         res.json("Profile updated");
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Update profile error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 // ========== STUDENT ROUTES ==========
@@ -140,7 +162,7 @@ app.post("/projects", authorize, async (req, res) => {
         );
         res.json(newProject.rows[0]);
     } catch (err) {
-        console.error(err);
+        console.error("Create project error:", err);
         res.status(500).send("Server Error");
     }
 });
@@ -162,7 +184,10 @@ app.put("/projects/:id", authorize, async (req, res) => {
             [tasks ? JSON.stringify(tasks) : null, progress, expenses, materials_used, remarks, status, milestones, id]
         );
         res.json("Project updated");
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Update project error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.get("/my-projects", authorize, async (req, res) => {
@@ -176,7 +201,10 @@ app.get("/my-projects", authorize, async (req, res) => {
             ORDER BY p.created_at DESC
         `, [req.user.id]);
         res.json(projects.rows);
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Fetch my-projects error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.post("/projects/:id/upload", authorize, upload.single('file'), async (req, res) => {
@@ -185,7 +213,10 @@ app.post("/projects/:id/upload", authorize, upload.single('file'), async (req, r
         const fileUrl = `/uploads/${req.file.filename}`;
         await pool.query("UPDATE projects SET file_url = $1 WHERE id = $2 AND student_id = $3", [fileUrl, id, req.user.id]);
         res.json({ fileUrl });
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Upload error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.patch("/projects/:id/submit", authorize, async (req, res) => {
@@ -193,10 +224,12 @@ app.patch("/projects/:id/submit", authorize, async (req, res) => {
         const { id } = req.params;
         await pool.query("UPDATE projects SET status = 'submitted', submitted_at = NOW() WHERE id = $1 AND student_id = $2", [id, req.user.id]);
         res.json("Submitted");
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Submit error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
-// Student resubmits after revision
 app.patch("/projects/:id/resubmit", authorize, async (req, res) => {
     try {
         const { id } = req.params;
@@ -206,11 +239,11 @@ app.patch("/projects/:id/resubmit", authorize, async (req, res) => {
         );
         res.json("Project resubmitted successfully");
     } catch (err) {
+        console.error("Resubmit error:", err);
         res.status(500).send("Server Error");
     }
 });
 
-// Teacher requests revision with feedback
 app.patch("/projects/:id/request-revision", authorize, async (req, res) => {
     try {
         const { id } = req.params;
@@ -221,6 +254,7 @@ app.patch("/projects/:id/request-revision", authorize, async (req, res) => {
         );
         res.json("Revision requested");
     } catch (err) {
+        console.error("Request revision error:", err);
         res.status(500).send("Server Error");
     }
 });
@@ -240,7 +274,10 @@ app.get("/teacher/my-projects", authorize, async (req, res) => {
             ORDER BY p.submitted_at DESC NULLS LAST
         `, [req.user.id]);
         res.json(projects.rows);
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Teacher projects error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.post("/teacher/grade/:project_id", authorize, async (req, res) => {
@@ -256,7 +293,10 @@ app.post("/teacher/grade/:project_id", authorize, async (req, res) => {
         `, [project_id, req.user.id, finalGrade, feedback]);
         await pool.query("UPDATE projects SET status = 'graded' WHERE id = $1", [project_id]);
         res.json("Graded Successfully");
-    } catch (err) { res.status(500).send(err.message); }
+    } catch (err) {
+        console.error("Grade error:", err);
+        res.status(500).send(err.message);
+    }
 });
 
 app.patch("/projects/:id/assign-teacher", authorize, async (req, res) => {
@@ -265,7 +305,10 @@ app.patch("/projects/:id/assign-teacher", authorize, async (req, res) => {
         const { teacher_id } = req.body;
         await pool.query("UPDATE projects SET teacher_id = $1 WHERE id = $2", [teacher_id, id]);
         res.json("Teacher Assigned");
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Assign teacher error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 // ========== ADMIN ROUTES ==========
@@ -273,14 +316,20 @@ app.get("/admin/users", authorize, async (req, res) => {
     try {
         const users = await pool.query("SELECT id, name, email, role, class_section, subject FROM users ORDER BY id DESC");
         res.json(users.rows);
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Admin users error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.get("/admin/teachers", authorize, async (req, res) => {
     try {
         const teachers = await pool.query("SELECT id, name, subject FROM users WHERE role = 'teacher' ORDER BY name");
         res.json(teachers.rows);
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Admin teachers error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.get("/admin/projects", authorize, async (req, res) => {
@@ -299,7 +348,10 @@ app.get("/admin/projects", authorize, async (req, res) => {
             ORDER BY p.created_at DESC
         `);
         res.json(projects.rows);
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Admin projects error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 app.put("/admin/projects/:id/assign-teacher", authorize, async (req, res) => {
@@ -308,9 +360,15 @@ app.put("/admin/projects/:id/assign-teacher", authorize, async (req, res) => {
         const { teacher_id } = req.body;
         await pool.query("UPDATE projects SET teacher_id = $1 WHERE id = $2", [teacher_id, id]);
         res.json({ message: "Teacher reassigned successfully" });
-    } catch (err) { res.status(500).send("Server Error"); }
+    } catch (err) {
+        console.error("Admin reassign error:", err);
+        res.status(500).send("Server Error");
+    }
 });
 
 // ========== START SERVER ==========
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Test the simple login at POST ${PORT}/test-login`);
+});
