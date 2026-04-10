@@ -65,6 +65,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
+
+app.get("/test", (req, res) => {
+    res.json({ message: "Backend is alive" });
+});
 // ========== AUTH ROUTES ==========
 app.post("/auth/register", async (req, res) => {
     try {
