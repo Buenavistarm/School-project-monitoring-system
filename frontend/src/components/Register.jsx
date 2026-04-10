@@ -25,29 +25,43 @@ const Register = ({ setAuth }) => {
 
     const onSubmitForm = async (e) => {
         e.preventDefault();
+
         if (inputs.password !== inputs.confirmPassword) {
             setError("Passwords do not match!");
             return;
         }
+
         setLoading(true);
         setError("");
+
         try {
             const { confirmPassword, ...userData } = inputs;
+
+            // Siguraduhin na ang subject ay null kung hindi teacher ang pinili
+            if (userData.role !== 'teacher') {
+                userData.subject = null;
+            }
+
             const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
-            localStorage.setItem("token", response.data.token);
-            setAuth(true);
-            navigate("/dashboard");
+
+            if (response.data.token) {
+                localStorage.setItem("token", response.data.token);
+                setAuth(true);
+                navigate("/dashboard");
+            }
         } catch (err) {
-            setError(err.response?.data || "Registration failed!");
+            console.error("Register error:", err);
+            setError(err.response?.data || "Registration failed. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 p-4">
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 p-4 font-sans">
+            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/20 transition-all">
 
+                {/* DESIGNED ERROR NOTIFICATION */}
                 {error && (
                     <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-300">
                         <AlertCircle size={18} />
@@ -71,6 +85,7 @@ const Register = ({ setAuth }) => {
                         <input
                             type="text"
                             name="name"
+                            autoComplete="name"
                             placeholder="Full name"
                             value={inputs.name}
                             onChange={onChange}
@@ -84,6 +99,7 @@ const Register = ({ setAuth }) => {
                         <input
                             type="email"
                             name="email"
+                            autoComplete="email"
                             placeholder="Email address"
                             value={inputs.email}
                             onChange={onChange}
@@ -98,6 +114,7 @@ const Register = ({ setAuth }) => {
                             <input
                                 type={showPassword ? "text" : "password"}
                                 name="password"
+                                autoComplete="new-password"
                                 placeholder="Password"
                                 value={inputs.password}
                                 onChange={onChange}
@@ -109,6 +126,7 @@ const Register = ({ setAuth }) => {
                             <input
                                 type={showPassword ? "text" : "password"}
                                 name="confirmPassword"
+                                autoComplete="new-password"
                                 placeholder="Confirm"
                                 value={inputs.confirmPassword}
                                 onChange={onChange}
@@ -132,7 +150,7 @@ const Register = ({ setAuth }) => {
                                 name="role"
                                 value={inputs.role}
                                 onChange={onChange}
-                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all duration-300 font-bold text-xs appearance-none"
+                                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all duration-300 font-bold text-xs appearance-none cursor-pointer"
                                 required
                             >
                                 <option value="student">STUDENT</option>
@@ -142,12 +160,12 @@ const Register = ({ setAuth }) => {
                         </div>
 
                         {inputs.role === "teacher" && (
-                            <div className="relative group animate-in fade-in slide-in-from-left-2">
+                            <div className="relative group animate-in fade-in slide-in-from-left-2 duration-300">
                                 <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500 w-5 h-5" />
                                 <input
                                     type="text"
                                     name="subject"
-                                    placeholder="Enter Subject (e.g. Science)"
+                                    placeholder="e.g. Science"
                                     value={inputs.subject}
                                     onChange={onChange}
                                     className="w-full pl-12 pr-4 py-4 bg-white border border-emerald-200 rounded-2xl focus:ring-4 focus:ring-emerald-100 outline-none transition-all font-medium text-sm"
@@ -176,7 +194,7 @@ const Register = ({ setAuth }) => {
                 <div className="mt-8 pt-6 border-t border-gray-100 text-center">
                     <p className="text-gray-500 font-medium">
                         Already have an account?{" "}
-                        <Link to="/login" className="text-emerald-600 font-bold hover:underline underline-offset-4">
+                        <Link to="/login" className="text-emerald-600 font-bold hover:underline underline-offset-4 decoration-2">
                             Sign in
                         </Link>
                     </p>
