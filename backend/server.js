@@ -7,19 +7,19 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
-// Import database – adjust path if your db file is elsewhere
-// If you have a folder 'db' with index.js, use './db/index'
-// Otherwise, if you have a file 'db.js' in root, use './db'
-const pool = require('./db/index');  // <-- CHANGE THIS TO MATCH YOUR FILE STRUCTURE
+// IMPORT DATABASE - Siguraduhin na tama ang filename (db.js o db/index.js)
+// Kung ang file mo ay db.js sa root folder, gamitin ang: require('./db')
+const pool = require('./db');
 
 const app = express();
 
-// Ensure uploads folder exists
+// Siguraduhin na exist ang uploads folder
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
 }
 
 // ---------------------- CORS CONFIGURATION ----------------------
+// Payagan ang localhost at ang iyong Vercel link
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
@@ -40,12 +40,13 @@ app.use(cors({
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// ---------------------- JWT & MIDDLEWARE ----------------------
+// ---------------------- JWT GENERATOR ----------------------
 const jwtGenerator = (user_id) => {
     const payload = { user: { id: user_id } };
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" });
 };
 
+// ---------------------- MIDDLEWARE: AUTHORIZE ----------------------
 const authorize = (req, res, next) => {
     const token = req.header("token");
     if (!token) return res.status(403).json("Access Denied");
@@ -68,34 +69,35 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-// ========== TEST ROUTE (already working) ==========
-app.get("/test", (req, res) => {
-    res.json({ message: "Backend is alive" });
-});
+// ==========================================
+// AUTH ROUTES
+// ==========================================
 
-// ========== SIMPLE LOGIN TEST (no database) ==========
-// This will help verify if the route is registered
-app.post("/test-login", (req, res) => {
-    res.json({ message: "Test login endpoint works" });
-});
-
-// ========== AUTH ROUTES ==========
 app.post("/auth/register", async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, subject } = req.body;
+
+        // 1. Check if user exists
         const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-        if (user.rows.length !== 0) return res.status(401).send("User already exists");
+        if (user.rows.length !== 0) return res.status(401).json("User already exists");
+
+        // 2. Hash password
         const salt = await bcrypt.genSalt(10);
         const bcryptPassword = await bcrypt.hash(password, salt);
+
+        // 3. Insert user
         const newUser = await pool.query(
-            "INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role",
-            [name, email, bcryptPassword, role || 'student']
+            "INSERT INTO users (name, email, password, role, subject) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role",
+            [name, email, bcryptPassword, role || 'student', subject || null]
         );
+
+        // 4. Generate Token
         const token = jwtGenerator(newUser.rows[0].id);
         res.json({ token, user: newUser.rows[0] });
+
     } catch (err) {
-        console.error("Register error:", err);
-        res.status(500).send("Server Error");
+        console.error("Register error:", err.message);
+        res.status(500).json("Server Error during registration");
     }
 });
 
@@ -103,17 +105,20 @@ app.post("/auth/login", async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-        if (user.rows.length === 0) return res.status(401).send("Invalid Credentials");
+
+        if (user.rows.length === 0) return res.status(401).json("Invalid Credentials");
+
         const validPassword = await bcrypt.compare(password, user.rows[0].password);
-        if (!validPassword) return res.status(401).send("Invalid Credentials");
+        if (!validPassword) return res.status(401).json("Invalid Credentials");
+
         const token = jwtGenerator(user.rows[0].id);
         res.json({
             token,
             user: { id: user.rows[0].id, name: user.rows[0].name, email: user.rows[0].email, role: user.rows[0].role }
         });
     } catch (err) {
-        console.error("Login error:", err);
-        res.status(500).send("Server Error");
+        console.error("Login error:", err.message);
+        res.status(500).json("Server Error during login");
     }
 });
 
@@ -122,70 +127,27 @@ app.get("/auth/me", authorize, async (req, res) => {
         const user = await pool.query("SELECT id, name, email, role, class_section, subject FROM users WHERE id = $1", [req.user.id]);
         res.json(user.rows[0]);
     } catch (err) {
-        console.error("Auth/me error:", err);
         res.status(500).send("Server Error");
     }
 });
 
-app.put("/auth/me", authorize, async (req, res) => {
-    try {
-        const { class_section, subject } = req.body;
-        await pool.query(
-            "UPDATE users SET class_section = COALESCE($1, class_section), subject = COALESCE($2, subject) WHERE id = $3",
-            [class_section, subject, req.user.id]
-        );
-        res.json("Profile updated");
-    } catch (err) {
-        console.error("Update profile error:", err);
-        res.status(500).send("Server Error");
-    }
-});
+// ==========================================
+// PROJECT ROUTES
+// ==========================================
 
-// ========== STUDENT ROUTES ==========
 app.post("/projects", authorize, async (req, res) => {
     try {
-        const { title, description, subject, objectives, budget, start_date, deadline, assigned_members } = req.body;
-        let teacher_id = null;
-        if (subject) {
-            const teacher = await pool.query(
-                `SELECT id FROM users WHERE role = 'teacher' AND LOWER(subject) = LOWER($1) LIMIT 1`,
-                [subject]
-            );
-            if (teacher.rows.length) teacher_id = teacher.rows[0].id;
-        }
+        const { title, description, subject, objectives, budget, start_date, deadline, assigned_members, teacher_id } = req.body;
         const newProject = await pool.query(
             `INSERT INTO projects 
                 (title, description, student_id, teacher_id, status, subject, objectives, budget, start_date, deadline, assigned_members, progress) 
              VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9, $10, 'Not Started') 
              RETURNING *`,
-            [title, description, req.user.id, teacher_id, subject, objectives, budget, start_date, deadline, assigned_members]
+            [title, description, req.user.id, teacher_id || null, subject, objectives, budget, start_date, deadline, assigned_members]
         );
         res.json(newProject.rows[0]);
     } catch (err) {
         console.error("Create project error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-app.put("/projects/:id", authorize, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { tasks, progress, expenses, materials_used, remarks, status, milestones } = req.body;
-        await pool.query(
-            `UPDATE projects SET 
-                tasks = COALESCE($1, tasks),
-                progress = COALESCE($2, progress),
-                expenses = COALESCE($3, expenses),
-                materials_used = COALESCE($4, materials_used),
-                remarks = COALESCE($5, remarks),
-                status = COALESCE($6, status),
-                milestones = COALESCE($7, milestones)
-            WHERE id = $8`,
-            [tasks ? JSON.stringify(tasks) : null, progress, expenses, materials_used, remarks, status, milestones, id]
-        );
-        res.json("Project updated");
-    } catch (err) {
-        console.error("Update project error:", err);
         res.status(500).send("Server Error");
     }
 });
@@ -202,80 +164,6 @@ app.get("/my-projects", authorize, async (req, res) => {
         `, [req.user.id]);
         res.json(projects.rows);
     } catch (err) {
-        console.error("Fetch my-projects error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-app.post("/projects/:id/upload", authorize, upload.single('file'), async (req, res) => {
-    try {
-        const { id } = req.params;
-        const fileUrl = `/uploads/${req.file.filename}`;
-        await pool.query("UPDATE projects SET file_url = $1 WHERE id = $2 AND student_id = $3", [fileUrl, id, req.user.id]);
-        res.json({ fileUrl });
-    } catch (err) {
-        console.error("Upload error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-app.patch("/projects/:id/submit", authorize, async (req, res) => {
-    try {
-        const { id } = req.params;
-        await pool.query("UPDATE projects SET status = 'submitted', submitted_at = NOW() WHERE id = $1 AND student_id = $2", [id, req.user.id]);
-        res.json("Submitted");
-    } catch (err) {
-        console.error("Submit error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-app.patch("/projects/:id/resubmit", authorize, async (req, res) => {
-    try {
-        const { id } = req.params;
-        await pool.query(
-            "UPDATE projects SET status = 'submitted', submitted_at = NOW(), revision_feedback = NULL WHERE id = $1 AND student_id = $2",
-            [id, req.user.id]
-        );
-        res.json("Project resubmitted successfully");
-    } catch (err) {
-        console.error("Resubmit error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-app.patch("/projects/:id/request-revision", authorize, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { revision_feedback } = req.body;
-        await pool.query(
-            "UPDATE projects SET status = 'needs revision', revision_feedback = $1 WHERE id = $2",
-            [revision_feedback, id]
-        );
-        res.json("Revision requested");
-    } catch (err) {
-        console.error("Request revision error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-// ========== TEACHER ROUTES ==========
-app.get("/teacher/my-projects", authorize, async (req, res) => {
-    try {
-        const userRole = await pool.query("SELECT role FROM users WHERE id = $1", [req.user.id]);
-        if (userRole.rows[0].role !== 'teacher') return res.status(403).json("Access denied");
-        const projects = await pool.query(`
-            SELECT p.*, u.name as student_name, u.email as student_email,
-                   pg.grade, pg.feedback
-            FROM projects p
-            JOIN users u ON p.student_id = u.id
-            LEFT JOIN project_grades pg ON p.id = pg.project_id
-            WHERE p.teacher_id = $1
-            ORDER BY p.submitted_at DESC NULLS LAST
-        `, [req.user.id]);
-        res.json(projects.rows);
-    } catch (err) {
-        console.error("Teacher projects error:", err);
         res.status(500).send("Server Error");
     }
 });
@@ -284,18 +172,25 @@ app.post("/teacher/grade/:project_id", authorize, async (req, res) => {
     try {
         const { project_id } = req.params;
         const { grade, feedback } = req.body;
-        const finalGrade = grade.toString().substring(0, 5);
         await pool.query(`
             INSERT INTO project_grades (project_id, teacher_id, grade, feedback, updated_at)
             VALUES ($1, $2, $3, $4, NOW())
             ON CONFLICT (project_id) 
             DO UPDATE SET grade = EXCLUDED.grade, feedback = EXCLUDED.feedback, updated_at = NOW()
-        `, [project_id, req.user.id, finalGrade, feedback]);
+        `, [project_id, req.user.id, grade, feedback]);
         await pool.query("UPDATE projects SET status = 'graded' WHERE id = $1", [project_id]);
         res.json("Graded Successfully");
     } catch (err) {
-        console.error("Grade error:", err);
         res.status(500).send(err.message);
+    }
+});
+
+app.get("/teachers", authorize, async (req, res) => {
+    try {
+        const teachers = await pool.query("SELECT id, name, subject FROM users WHERE role = 'teacher'");
+        res.json(teachers.rows);
+    } catch (err) {
+        res.status(500).send("Server Error");
     }
 });
 
@@ -306,28 +201,19 @@ app.patch("/projects/:id/assign-teacher", authorize, async (req, res) => {
         await pool.query("UPDATE projects SET teacher_id = $1 WHERE id = $2", [teacher_id, id]);
         res.json("Teacher Assigned");
     } catch (err) {
-        console.error("Assign teacher error:", err);
         res.status(500).send("Server Error");
     }
 });
 
-// ========== ADMIN ROUTES ==========
+// ==========================================
+// ADMIN ROUTES
+// ==========================================
+
 app.get("/admin/users", authorize, async (req, res) => {
     try {
         const users = await pool.query("SELECT id, name, email, role, class_section, subject FROM users ORDER BY id DESC");
         res.json(users.rows);
     } catch (err) {
-        console.error("Admin users error:", err);
-        res.status(500).send("Server Error");
-    }
-});
-
-app.get("/admin/teachers", authorize, async (req, res) => {
-    try {
-        const teachers = await pool.query("SELECT id, name, subject FROM users WHERE role = 'teacher' ORDER BY name");
-        res.json(teachers.rows);
-    } catch (err) {
-        console.error("Admin teachers error:", err);
         res.status(500).send("Server Error");
     }
 });
@@ -335,12 +221,7 @@ app.get("/admin/teachers", authorize, async (req, res) => {
 app.get("/admin/projects", authorize, async (req, res) => {
     try {
         const projects = await pool.query(`
-            SELECT 
-                p.*, 
-                u.name as student_name, 
-                t.name as teacher_name, 
-                t.subject as teacher_subject,
-                pg.grade
+            SELECT p.*, u.name as student_name, t.name as teacher_name, t.subject as teacher_subject, pg.grade
             FROM projects p
             JOIN users u ON p.student_id = u.id
             LEFT JOIN users t ON p.teacher_id = t.id
@@ -349,26 +230,21 @@ app.get("/admin/projects", authorize, async (req, res) => {
         `);
         res.json(projects.rows);
     } catch (err) {
-        console.error("Admin projects error:", err);
         res.status(500).send("Server Error");
     }
 });
 
-app.put("/admin/projects/:id/assign-teacher", authorize, async (req, res) => {
+// TEST DATABASE CONNECTION
+app.get("/test-db", async (req, res) => {
     try {
-        const { id } = req.params;
-        const { teacher_id } = req.body;
-        await pool.query("UPDATE projects SET teacher_id = $1 WHERE id = $2", [teacher_id, id]);
-        res.json({ message: "Teacher reassigned successfully" });
+        const result = await pool.query("SELECT NOW()");
+        res.json(result.rows[0]);
     } catch (err) {
-        console.error("Admin reassign error:", err);
-        res.status(500).send("Server Error");
+        res.status(500).send(err.message);
     }
 });
 
-// ========== START SERVER ==========
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Test the simple login at POST ${PORT}/test-login`);
 });
