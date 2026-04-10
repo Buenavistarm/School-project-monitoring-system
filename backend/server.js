@@ -10,14 +10,34 @@ require('dotenv').config();
 
 const app = express();
 
+// Ensure uploads folder exists
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
 }
 
-app.use(cors());
+// ---------------------- CORS CONFIGURATION ----------------------
+// Allow localhost for development and Vercel frontend
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://school-project-monitoring-system.vercel.app'
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
+// ---------------------- JWT & MIDDLEWARE ----------------------
 const jwtGenerator = (user_id) => {
     const payload = { user: { id: user_id } };
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" });
@@ -35,6 +55,7 @@ const authorize = (req, res, next) => {
     }
 };
 
+// ---------------------- MULTER (FILE UPLOAD) ----------------------
 const storage = multer.diskStorage({
     destination: (req, file, cb) => { cb(null, 'uploads/'); },
     filename: (req, file, cb) => {
@@ -44,7 +65,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
-// ========== AUTH ==========
+// ========== AUTH ROUTES ==========
 app.post("/auth/register", async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
@@ -94,11 +115,10 @@ app.put("/auth/me", authorize, async (req, res) => {
     } catch (err) { res.status(500).send("Server Error"); }
 });
 
-// ========== STUDENT ==========
+// ========== STUDENT ROUTES ==========
 app.post("/projects", authorize, async (req, res) => {
     try {
         const { title, description, subject, objectives, budget, start_date, deadline, assigned_members } = req.body;
-        // Auto-assign teacher based on subject
         let teacher_id = null;
         if (subject) {
             const teacher = await pool.query(
@@ -201,7 +221,7 @@ app.patch("/projects/:id/request-revision", authorize, async (req, res) => {
     }
 });
 
-// ========== TEACHER ==========
+// ========== TEACHER ROUTES ==========
 app.get("/teacher/my-projects", authorize, async (req, res) => {
     try {
         const userRole = await pool.query("SELECT role FROM users WHERE id = $1", [req.user.id]);
@@ -244,7 +264,7 @@ app.patch("/projects/:id/assign-teacher", authorize, async (req, res) => {
     } catch (err) { res.status(500).send("Server Error"); }
 });
 
-// ========== ADMIN ==========
+// ========== ADMIN ROUTES ==========
 app.get("/admin/users", authorize, async (req, res) => {
     try {
         const users = await pool.query("SELECT id, name, email, role, class_section, subject FROM users ORDER BY id DESC");
@@ -287,5 +307,6 @@ app.put("/admin/projects/:id/assign-teacher", authorize, async (req, res) => {
     } catch (err) { res.status(500).send("Server Error"); }
 });
 
+// ========== START SERVER ==========
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
